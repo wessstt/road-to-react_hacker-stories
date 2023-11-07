@@ -1,6 +1,5 @@
 import * as React from "react";
 
-// Concise JSX component with arrow functions
 const App = () => {
   const stories = [
     {
@@ -21,63 +20,58 @@ const App = () => {
     },
   ];
 
+  const [searchTerm, setSearchTerm] = React.useState("React");
+
   const handleSearch = (event) => {
     console.log(event.target.value);
+    setSearchTerm(event.target.value);
   };
+
+  const searchedStories = stories.filter((story) =>
+    story.title.toLowerCase().includes(searchTerm.toLocaleLowerCase())
+  );
 
   return (
     <div>
       <h1>My Hacker Stories</h1>
 
-      <Search onSearch={handleSearch} />
+      <Search search={searchTerm} onSearch={handleSearch} />
 
       <hr />
-
-      <List list={stories} />
+      <List list={searchedStories} />
     </div>
   );
 };
 
-// Concise JSX component with arrow functions
-const Search = (props) => {
-  const [searchTerm, setSearchTerm] = React.useState("");
 
-  const handleChange = (event) => {
-    //console.log(`Before setting searchTerm: ${searchTerm}`);
-    setSearchTerm(event.target.value);
-    //console.log(`After setting searchTerm: ${searchTerm}`);
-    props.onSearch(event);
-  };
-
-  return (
-    <div>
-      <label htmlFor="search">Search: </label>
-      <input id="search" type="text" onChange={handleChange} />
-
-      <p>
-        Searching for <strong>{searchTerm}</strong>
-      </p>
-    </div>
-  );
-};
-
-// Concise JSX component with arrow functions
-const List = (props) => (
+  
+const Search = ({search, onSearch}) => (
+  <div>
+    <label htmlFor="search">Search: </label>
+    <input 
+      id="search" 
+      type="text" 
+      value={search}
+      onChange={onSearch} />
+  </div>
+);
+      
+const List = ({list}) => (
   <ul>
-    {props.list.map((item) => (
+    {list.map((item) => (
       <Item key={item.objectID} item={item} />
     ))}
   </ul>
 );
 
-const Item = (props) => (
-  <li>
+const Item = ({item}) => (
+<li>
     <span>
-      <a href={props.item.url}>{props.item.title}</a>
+      <a href={item.url}>{item.title}</a>
     </span>
-    <span>{props.item.author}</span>
-    <span>{props.item.num_comments}</span>
-    <span>{props.item.points}</span>
+    <span>{item.author}</span>
+    <span>{item.num_comments}</span>
+    <span>{item.points}</span>
   </li>
 );
 
