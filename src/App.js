@@ -1,5 +1,20 @@
 import * as React from "react";
 
+const useSemiPersistentState = (key, initialState) => {
+  const [value, setValue] = React.useState(
+    localStorage.getItem("key") || initialState
+  );
+
+  //remember last search (side-effect)
+  //Use React’s useEffect Hook to trigger the side-effect each time the searchTerm changes
+  React.useEffect(() => {
+    localStorage.setItem(key, value);
+    console.log(localStorage);
+  }, [value, key]);
+
+  return [value, setValue];
+};
+
 const App = () => {
   const stories = [
     {
@@ -20,10 +35,11 @@ const App = () => {
     },
   ];
 
-  const [searchTerm, setSearchTerm] = React.useState("React");
+  //React custom useState Hook
+  const [searchTerm, setSearchTerm] = useSemiPersistentState("search", "React");
 
   const handleSearch = (event) => {
-    console.log(event.target.value);
+    //console.log(event.target.value);
     setSearchTerm(event.target.value);
   };
 
@@ -43,20 +59,14 @@ const App = () => {
   );
 };
 
-
-  
-const Search = ({search, onSearch}) => (
-  <div>
+const Search = ({ search, onSearch }) => (
+  <>
     <label htmlFor="search">Search: </label>
-    <input 
-      id="search" 
-      type="text" 
-      value={search}
-      onChange={onSearch} />
-  </div>
+    <input id="search" type="text" value={search} onChange={onSearch} />
+  </>
 );
-      
-const List = ({list}) => (
+
+const List = ({ list }) => (
   <ul>
     {list.map((item) => (
       <Item key={item.objectID} item={item} />
@@ -64,8 +74,8 @@ const List = ({list}) => (
   </ul>
 );
 
-const Item = ({item}) => (
-<li>
+const Item = ({ item }) => (
+  <li>
     <span>
       <a href={item.url}>{item.title}</a>
     </span>
