@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useEffect, useState, useRef, useReducer } from "react";
 
 const initialStories = [
   {
@@ -19,36 +19,90 @@ const initialStories = [
   },
 ];
 
-const useSemiPersistentState = (key, initialState) => {
-  const [value, setValue] = React.useState(
-    localStorage.getItem(key) || initialState
+const getAsyncStories = () =>
+  new Promise((resolve) =>
+    setTimeout(() => resolve({ data: { stories: initialStories } }), 2000)
   );
 
-  React.useEffect(() => {
+const useSemiPersistentState = (key, initialState) => {
+  const [value, setValue] = useState(localStorage.getItem(key) || initialState);
+
+  useEffect(() => {
     localStorage.setItem(key, value);
   }, [value, key]);
 
   return [value, setValue];
 };
 
+//Reducer Hook
+const storiesReducer = (state, action) => {
+  switch (action.type) {
+    case "STORIES_FETCH_INIT":
+      return {
+        ...state,
+        isLoading: true,
+        isError: false,
+      };
+    case "STORIES_FETCH_SUCCESS":
+      return {
+        ...state,
+        isLoading: false,
+        isError: false,
+        data: action.payload,
+      };
+    case "STORIES_FETCH_FAILURE":
+      return {
+        ...state,
+        isLoading: false,
+        isError: true,
+      };
+    case "REMOVE_STORY":
+      return {
+        ...state,
+        data: state.data.filter(
+          (story) => action.payload.objectID !== story.objectID
+        ),
+      };
+    default:
+      throw new Error();
+  }
+};
+
 const App = () => {
   const [searchTerm, setSearchTerm] = useSemiPersistentState("search", "React");
 
-  const [stories, setStories] = React.useState(initialStories);
+  //useReducer hook - asynchronous data
+  const [stories, dispatchStories] = useReducer(storiesReducer, {
+    data: [],
+    isLoading: false,
+    isError: false,
+  });
+
+  useEffect(() => {
+    dispatchStories({ type: "STORIES_FETCH_INIT" });
+
+    getAsyncStories()
+      .then((result) => {
+        dispatchStories({
+          type: "STORIES_FETCH_SUCCESS",
+          payload: result.data.stories,
+        });
+      })
+      .catch(() => dispatchStories({ type: "STORIES_FETCH_FAILURE" }));
+  }, []);
 
   const handleRemoveStory = (item) => {
-    const newStories = stories.filter(
-      (story) => item.objectID !== story.objectID
-    );
-
-    setStories(newStories);
+    dispatchStories({
+      type: "REMOVE_STORY",
+      payload: item,
+    });
   };
 
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
   };
 
-  const searchedStories = stories.filter((story) =>
+  const searchedStories = stories.data.filter((story) =>
     story.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -67,7 +121,15 @@ const App = () => {
 
       <hr />
 
-      <List list={searchedStories} onRemoveItem={handleRemoveStory} />
+      {/* user feedback - errors */}
+      {stories.isError && <p>Something went wrong...</p>}
+
+      {/* user feedback - loading indicator */}
+      {stories.isLoading ? (
+        <p>Loading...</p>
+      ) : (
+        <List list={searchedStories} onRemoveItem={handleRemoveStory} />
+      )}
     </div>
   );
 };
@@ -80,9 +142,9 @@ const InputWithLabel = ({
   isFocused,
   children,
 }) => {
-  const inputRef = React.useRef();
+  const inputRef = useRef();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isFocused && inputRef.current) {
       inputRef.current.focus();
     }
