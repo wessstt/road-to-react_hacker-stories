@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useRef, useReducer } from "react";
 import axios from "axios";
+import { sortBy } from "lodash";
 
-// REMOTE API
-// A.1
+import styles from "./App.module.css";
+import { ReactComponent as Delete } from "./svg/delete.svg";
+import { ReactComponent as Search } from "./svg/search.svg";
+
 const API_ENDPOINT = "https://hn.algolia.com/api/v1/search?query=";
 
 const useSemiPersistentState = (key, initialState) => {
@@ -29,7 +32,11 @@ const storiesReducer = (state, action) => {
         ...state,
         isLoading: false,
         isError: false,
-        data: action.payload,
+        data:
+          action.payload.page === 0
+            ? action.payload.list
+            : state.data.concat(action.payload.list),
+        page: action.payload.page,
       };
     case "STORIES_FETCH_FAILURE":
       return {
@@ -70,7 +77,10 @@ const App = () => {
 
       dispatchStories({
         type: "STORIES_FETCH_SUCCESS",
-        payload: result.data.hits,
+        payload: {
+          list: result.data.hits,
+          page: result.data.page,
+        },
       });
     } catch {
       dispatchStories({ type: "STORIES_FETCH_FAILURE" });
@@ -99,33 +109,35 @@ const App = () => {
   };
 
   const SearchForm = ({ searchTerm, onSearchInput, onSearchSubmit }) => (
-    <form onSubmit={onSearchSubmit}>
+    <form onSubmit={onSearchSubmit} className={styles.searchForm}>
       <InputWithLabel
         id="search"
         value={searchTerm}
         isFocused
         onInputChange={onSearchInput}
       >
-        <strong>Search:</strong>
+        <Search height="25px" width="25px" />
       </InputWithLabel>
 
-      <button type="submit" disabled={!searchTerm}>
+      <button
+        type="submit"
+        disabled={!searchTerm}
+        className={`${styles.button} ${styles.buttonLarge}`}
+      >
         Submit
       </button>
     </form>
   );
 
   return (
-    <div>
-      <h1>My Hacker Stories</h1>
+    <div className={styles.container}>
+      <h1 className={styles.headlinePrimary}>My Hacker Stories</h1>
 
       <SearchForm
         searchTerm={searchTerm}
         onSearchInput={handleSearchInput}
         onSearchSubmit={handleSearchSubmit}
       />
-
-      <hr />
 
       {/* user feedback - errors */}
       {stories.isError && <p>Something went wrong...</p>}
@@ -158,7 +170,9 @@ const InputWithLabel = ({
 
   return (
     <>
-      <label htmlFor={id}>{children}</label>
+      <label htmlFor={id} className={styles.label}>
+        {children}
+      </label>
       &nbsp;
       <input
         id={id}
@@ -166,33 +180,104 @@ const InputWithLabel = ({
         type={type}
         value={value}
         onChange={onInputChange}
+        className={styles.input}
       />
     </>
   );
 };
 
-const List = ({ list, onRemoveItem }) => (
-  <ul>
-    {list.map((item) => (
-      <Item key={item.objectID} item={item} onRemoveItem={onRemoveItem} />
-    ))}
-  </ul>
-);
+const SORTS = {
+  NONE: (list) => list,
+  TITLE: (list) => sortBy(list, "title"),
+  AUTHOR: (list) => sortBy(list, "author"),
+  COMMENT: (list) => sortBy(list, "num_comments").reverse(),
+  POINT: (list) => sortBy(list, "points").reverse(),
+};
+
+const List = ({ list, onRemoveItem }) => {
+  const [sort, setSort] = useState({
+    sortKey: "NONE",
+    isReverse: false,
+  });
+
+  const handleSort = (sortKey) => {
+    const isReverse = sort.sortKey === sortKey && !sort.isReverse;
+
+    setSort({ sortKey, isReverse });
+  };
+
+  const sortFunction = SORTS[sort.sortKey];
+
+  const sortedList = sort.isReverse
+    ? sortFunction(list).reverse()
+    : sortFunction(list);
+
+  return (
+    <div>
+      <div>
+        <span>
+          <button
+            type="button"
+            onClick={() => handleSort("TITLE")}
+            className={`${styles.button} ${styles.buttonLarge}`}
+          >
+            Title
+          </button>
+        </span>
+        <span>
+          <button
+            type="button"
+            onClick={() => handleSort("AUTHOR")}
+            className={`${styles.button} ${styles.buttonLarge}`}
+          >
+            Author
+          </button>
+        </span>
+        <span>
+          <button
+            type="button"
+            onClick={() => handleSort("COMMENT")}
+            className={`${styles.button} ${styles.buttonLarge}`}
+          >
+            Comments
+          </button>
+        </span>
+        <span>
+          <button
+            type="button"
+            onClick={() => handleSort("POINT")}
+            className={`${styles.button} ${styles.buttonLarge}`}
+          >
+            Points
+          </button>
+        </span>
+      </div>
+
+      {sortedList.map((item) => (
+        <Item key={item.objectID} item={item} onRemoveItem={onRemoveItem} />
+      ))}
+    </div>
+  );
+};
 
 const Item = ({ item, onRemoveItem }) => (
-  <li>
-    <span>
+  <div className={styles.item}>
+    <span style={{ width: "40%" }}>
       <a href={item.url}>{item.title}</a>
     </span>
-    <span>{item.author}</span>
-    <span>{item.num_comments}</span>
-    <span>{item.points}</span>
-    <span>
-      <button type="button" onClick={() => onRemoveItem(item)}>
-        Dismiss
+    <span style={{ width: "30%" }}>{item.author}</span>
+    <span style={{ width: "10%" }}>{item.num_comments}</span>
+    <span style={{ width: "10%" }}>{item.points}</span>
+    <span style={{ width: "10%" }}>
+      <button
+        type="button"
+        onClick={() => onRemoveItem(item)}
+        className={`${styles.button} ${styles.buttonSmall}`}
+      >
+        <Delete height="18px" width="18px" />
       </button>
     </span>
-  </li>
+  </div>
 );
 
 export default App;
